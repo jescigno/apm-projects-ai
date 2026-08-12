@@ -102,7 +102,7 @@ function BreadcrumbText({ children }) {
   );
 }
 
-const DEFAULT_DOC_TITLE = 'apm music';
+const DEFAULT_DOC_TITLE = 'AI Search';
 
 export default function ProjectsPage({
   activeFolderId,

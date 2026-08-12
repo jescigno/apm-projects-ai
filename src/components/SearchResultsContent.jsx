@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import TrackList, { SEARCH_RESULTS_TRACKS } from './TrackList';
+import SearchRefineBar from './SearchRefineBar';
 import { LAYOUT_COMPACT_MAX_WIDTH } from '../constants/layout';
 import {
   DEFAULT_SEARCH_CUSTOMIZE,
@@ -15,6 +16,10 @@ export default function SearchResultsContent({
   tracks = SEARCH_RESULTS_TRACKS,
   enterHighlightTrackNum,
   scrollToBottomSignal,
+  onRefineSubmit,
+  searchChatOpen,
+  pendingRefineHint,
+  onPendingRefineHintConsumed,
 }) {
   const [hideTracksHeader, setHideTracksHeader] = useState(false);
   const [searchCustomize, setSearchCustomize] = useState(DEFAULT_SEARCH_CUSTOMIZE);
@@ -30,7 +35,7 @@ export default function SearchResultsContent({
   }, []);
 
   return (
-    <div className="search-results-page">
+    <div className={`search-results-page${searchChatOpen ? '' : ' search-results-page--with-refine-bar'}`}>
       <TrackList
         sectionClassName="tracks-section--search-results"
         headerActionsVariant="search"
@@ -51,6 +56,13 @@ export default function SearchResultsContent({
         searchSortBy={searchSortBy}
         onSearchSortByChange={setSearchSortBy}
       />
+      {!searchChatOpen && (
+        <SearchRefineBar
+          onRefineSubmit={onRefineSubmit}
+          pendingRefineHint={pendingRefineHint}
+          onPendingRefineHintConsumed={onPendingRefineHintConsumed}
+        />
+      )}
     </div>
   );
 }
