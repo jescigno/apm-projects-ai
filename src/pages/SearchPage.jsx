@@ -11,10 +11,6 @@ export default function SearchPage({
   tracks = SEARCH_RESULTS_TRACKS,
   enterHighlightTrackNum,
   scrollToBottomSignal,
-  onRefineSubmit,
-  searchChatOpen,
-  pendingRefineHint,
-  onPendingRefineHintConsumed,
 }) {
   const showResults = Boolean(searchQuery?.trim());
 
@@ -28,10 +24,6 @@ export default function SearchPage({
           tracks={tracks}
           enterHighlightTrackNum={enterHighlightTrackNum}
           scrollToBottomSignal={scrollToBottomSignal}
-          onRefineSubmit={onRefineSubmit}
-          searchChatOpen={searchChatOpen}
-          pendingRefineHint={pendingRefineHint}
-          onPendingRefineHintConsumed={onPendingRefineHintConsumed}
         />
       </div>
     );

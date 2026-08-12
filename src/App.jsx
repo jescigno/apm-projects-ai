@@ -19,8 +19,7 @@ import SearchPage from './pages/SearchPage';
 import AccountPage from './pages/AccountPage';
 import NotificationsPage from './pages/NotificationsPage';
 import DesignSystemPage from './pages/DesignSystemPage';
-import SearchFiltersPanel from './components/SearchFiltersPanel';
-import SearchChatPanel from './components/SearchChatPanel';
+import SearchSidePanel from './components/SearchSidePanel';
 import SoundsLikePanel from './components/SoundsLikePanel';
 import ProjectsPanel, { FolderReorderDragOverlay } from './components/ProjectsPanel';
 import TrackDragThumbnail from './components/TrackDragThumbnail';
@@ -88,8 +87,8 @@ import { COMMENTS_PANEL_INITIAL_ITEMS } from './constants/commentsPanel';
 import { CLOCK_PANEL_INITIAL_ITEMS } from './constants/clockPanel';
 import {
   buildFollowUpAssistantResponse,
-  buildInitialAssistantResponse,
   buildRefineAssistantResponse,
+  SEARCH_CHAT_PANEL_DEFAULT_WIDTH,
 } from './constants/searchChat';
 
 const PANEL_MIN_WIDTH = 263;
@@ -164,8 +163,11 @@ function AppContent() {
   const folderReorderLandTimerRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchChatOpen, setSearchChatOpen] = useState(false);
+  const [searchChatEngaged, setSearchChatEngaged] = useState(false);
+  const [searchSidePanelTab, setSearchSidePanelTab] = useState('chat');
   const [searchChatMessages, setSearchChatMessages] = useState([]);
-  const [pendingRefineHint, setPendingRefineHint] = useState('');
+  const [searchChatPanelWidth, setSearchChatPanelWidth] = useState(SEARCH_CHAT_PANEL_DEFAULT_WIDTH);
+  const lastSeededSearchQueryRef = useRef('');
   const headerMenuRef = useRef(null);
   const { currentTrack, isPlayerClosing } = usePlayer();
 
@@ -571,16 +573,37 @@ function AppContent() {
     } else {
       setSearchQuery('');
       setSearchChatOpen(false);
+      setSearchChatEngaged(false);
       setSearchChatMessages([]);
+      lastSeededSearchQueryRef.current = '';
     }
   }, [location.pathname]);
 
   useEffect(() => {
-    if (!searchQuery.trim()) {
+    const trimmed = searchQuery.trim();
+    if (!trimmed) {
       setSearchChatOpen(false);
+      setSearchChatEngaged(false);
       setSearchChatMessages([]);
+      lastSeededSearchQueryRef.current = '';
+      return;
     }
+
+    if (lastSeededSearchQueryRef.current !== trimmed) {
+      setSearchChatEngaged(false);
+      setSearchChatMessages([]);
+      lastSeededSearchQueryRef.current = trimmed;
+    }
+
+    setSearchChatOpen(true);
+    setSearchSidePanelTab('chat');
   }, [searchQuery]);
+
+  useEffect(() => {
+    if (!searchChatOpen) {
+      setSearchChatPanelWidth(SEARCH_CHAT_PANEL_DEFAULT_WIDTH);
+    }
+  }, [searchChatOpen]);
 
   useEffect(() => {
     if (!soundsLikePanelOpen) {
@@ -677,22 +700,13 @@ function AppContent() {
     isAccountRoute || isAdminRoute || isNotificationsRoute || isDesignSystemRoute;
 
   const handleRecentSearchSelect = useCallback((item) => {
-    setSearchChatOpen(false);
-    setSearchChatMessages([]);
+    setSearchSidePanelTab('chat');
     setSearchQuery(item.label);
-  }, []);
-
-  const handleSearchChatHintSelect = useCallback((hint) => {
-    setPendingRefineHint(hint);
-  }, []);
-
-  const handlePendingRefineHintConsumed = useCallback(() => {
-    setPendingRefineHint('');
   }, []);
 
   const handleRefineSearch = useCallback(({ refineQuery, folderIds = [] }) => {
     const trimmed = refineQuery?.trim();
-    if (!trimmed) return;
+    if (!trimmed && folderIds.length === 0) return;
 
     const folderNames = folderIds
       .map((id) => findFolderById(PROJECTS_PANEL_FOLDER_TREE, id)?.name)
@@ -700,46 +714,31 @@ function AppContent() {
 
     setSearchChatMessages((prev) => {
       const next = [...prev];
-      const isFirstRefine = prev.length === 0;
-
-      if (isFirstRefine) {
-        const initialQuery = searchQuery.trim();
-        if (initialQuery) {
-          next.push({
-            id: 'search-initial-user',
-            role: 'user',
-            content: initialQuery,
-          });
-          next.push({
-            id: 'search-initial-assistant',
-            role: 'assistant',
-            content: buildInitialAssistantResponse(initialQuery),
-          });
-        }
-      }
+      const isFirstFollowUp = prev.length === 0;
 
       next.push({
         id: `search-user-${Date.now()}`,
         role: 'user',
-        content: trimmed,
+        content: trimmed || folderNames.join(', '),
         folderIds,
       });
       next.push({
         id: `search-assistant-${Date.now()}`,
         role: 'assistant',
-        content: isFirstRefine
+        content: isFirstFollowUp
           ? buildRefineAssistantResponse(trimmed, folderNames)
-          : buildFollowUpAssistantResponse(trimmed),
+          : buildFollowUpAssistantResponse(trimmed || folderNames.join(', ')),
       });
 
       return next;
     });
-    setSearchChatOpen(true);
-    setSearchQuery((current) => {
-      const base = current.trim();
-      return base ? `${base} ${trimmed}` : trimmed;
-    });
-  }, [searchQuery]);
+    setSearchChatEngaged(true);
+    setSearchSidePanelTab('chat');
+  }, []);
+
+  const handleSearchChatHintSelect = useCallback((hint) => {
+    handleRefineSearch({ refineQuery: hint });
+  }, [handleRefineSearch]);
 
   return (
     <DndContext
@@ -760,20 +759,25 @@ function AppContent() {
       <Sidebar onHomeClick={handleHomeNavClick} />
       <div
         className={`app-content-wrapper${rightPanelOpen ? ' app-content--right-panel-open' : ''}${isSearchRoute ? ' app-content-wrapper--search' : ''}${isSearchRoute && searchChatOpen ? ' app-content-wrapper--search-chat' : ''}${isProjectsRoute ? ' app-content-wrapper--projects' : ''}${isFullBleedRoute ? ' app-content-wrapper--account' : ''}`}
-        style={rightPanelOpen ? { paddingRight: `${mainPaddingRight}px` } : undefined}
+        style={{
+          ...(rightPanelOpen ? { paddingRight: `${mainPaddingRight}px` } : null),
+          ...(isSearchRoute && searchChatOpen
+            ? { '--search-side-panel-width': `${searchChatPanelWidth}px` }
+            : null),
+        }}
       >
         {isSearchRoute && (
-          searchChatOpen ? (
-            <SearchChatPanel
-              messages={searchChatMessages}
-              onRefineSubmit={handleRefineSearch}
-              onHintSelect={handleSearchChatHintSelect}
-              pendingRefineHint={pendingRefineHint}
-              onPendingRefineHintConsumed={handlePendingRefineHintConsumed}
-            />
-          ) : (
-            <SearchFiltersPanel />
-          )
+          <SearchSidePanel
+            searchChatOpen={searchChatOpen}
+            chatEngaged={searchChatEngaged}
+            sidePanelTab={searchSidePanelTab}
+            onSidePanelTabChange={setSearchSidePanelTab}
+            messages={searchChatMessages}
+            onRefineSubmit={handleRefineSearch}
+            onHintSelect={handleSearchChatHintSelect}
+            width={searchChatPanelWidth}
+            onWidthChange={setSearchChatPanelWidth}
+          />
         )}
         <main className="main-content">
           <Routes>
@@ -829,10 +833,6 @@ function AppContent() {
                 <SearchPage
                   searchQuery={searchQuery}
                   onRecentSearchSelect={handleRecentSearchSelect}
-                  onRefineSubmit={handleRefineSearch}
-                  searchChatOpen={searchChatOpen}
-                  pendingRefineHint={pendingRefineHint}
-                  onPendingRefineHintConsumed={handlePendingRefineHintConsumed}
                   soundsLikePanelOpen={soundsLikePanelOpen}
                   onSoundsLikeClick={openSoundsLikePanel}
                   onSoundsLikeWithSelection={openSoundsLikePanelWithSelection}

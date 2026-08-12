@@ -45,7 +45,7 @@ function ChevronRightIcon() {
   );
 }
 
-export default function SearchFiltersPanel() {
+export default function SearchFiltersPanel({ embedded = false }) {
   const [quickFiltersOpen, setQuickFiltersOpen] = useState(true);
   const [tagsOpen, setTagsOpen] = useState(true);
   const [activeQuickFilters, setActiveQuickFilters] = useState(() => new Set());
@@ -59,9 +59,8 @@ export default function SearchFiltersPanel() {
     });
   };
 
-  return (
-    <aside className="search-filters-panel" aria-label="Search filters">
-      <div className="search-filters-panel-body">
+  const body = (
+    <div className="search-filters-panel-body">
         <section className="search-filters-group">
           <button
             type="button"
@@ -132,6 +131,15 @@ export default function SearchFiltersPanel() {
           )}
         </section>
       </div>
+  );
+
+  if (embedded) {
+    return body;
+  }
+
+  return (
+    <aside className="search-filters-panel" aria-label="Search filters">
+      {body}
     </aside>
   );
 }

@@ -1,3 +1,7 @@
+export const SEARCH_CHAT_PANEL_DEFAULT_WIDTH = 300;
+export const SEARCH_CHAT_PANEL_MIN_WIDTH = 260;
+export const SEARCH_CHAT_PANEL_MAX_WIDTH = 560;
+
 export const SEARCH_CHAT_HINTS = [
   { id: 'recorded-this-year', label: 'Tracks recorded this year' },
   { id: 'artists-i-like', label: 'Tracks from artists I like' },
