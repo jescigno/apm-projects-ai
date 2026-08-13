@@ -1440,6 +1440,7 @@ html:has(.app-content-wrapper--search) {
   overflow: hidden;
   height: calc(100vh - var(--header-stack-height));
   min-height: 0;
+  background: var(--bg-page);
 }
 
 .app-root.player-visible .app-content-wrapper--search {
@@ -3135,7 +3136,6 @@ body:has(.app-root.player-visible) .search-refine-bar {
   width: var(--search-filters-panel-width);
   min-height: calc(100vh - var(--header-stack-height));
   background: var(--bg-page);
-  border-left: 1px solid var(--border);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -3149,53 +3149,85 @@ body:has(.app-root.player-visible) .search-refine-bar {
   padding: 0 0 24px;
 }
 
-/* Thin scrollbar shared by search filters + main search column + account page + projects page */
+/* Thin scrollbar shared by main search column + account page + projects page */
 .search-home,
 .search-results-page,
-.search-filters-panel-body,
 .account-page-body,
 .projects-page {
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
+.search-filters-panel-body {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
 .search-home::-webkit-scrollbar,
 .search-results-page::-webkit-scrollbar,
-.search-filters-panel-body::-webkit-scrollbar,
 .account-page-body::-webkit-scrollbar,
 .projects-page::-webkit-scrollbar {
   width: 4px;
 }
 
+.search-filters-panel-body::-webkit-scrollbar {
+  width: 4px;
+}
+
 .search-home::-webkit-scrollbar-track,
 .search-results-page::-webkit-scrollbar-track,
-.search-filters-panel-body::-webkit-scrollbar-track,
 .account-page-body::-webkit-scrollbar-track,
 .projects-page::-webkit-scrollbar-track {
   background: transparent;
 }
 
+.search-filters-panel-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 .search-home::-webkit-scrollbar-thumb,
 .search-results-page::-webkit-scrollbar-thumb,
-.search-filters-panel-body::-webkit-scrollbar-thumb,
 .account-page-body::-webkit-scrollbar-thumb,
 .projects-page::-webkit-scrollbar-thumb {
   background: var(--scrollbar-thumb);
   border-radius: 4px;
 }
 
+.search-filters-panel-body::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.search-filters-panel-body:hover,
+.search-filters-panel-body:focus-within,
+.search-filters-panel-body.search-filters-panel-body--scrolling {
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+.search-filters-panel-body:hover::-webkit-scrollbar-thumb,
+.search-filters-panel-body:focus-within::-webkit-scrollbar-thumb,
+.search-filters-panel-body.search-filters-panel-body--scrolling::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+}
+
 @media (min-width: 769px) and (hover: hover) and (pointer: fine) {
 .search-home::-webkit-scrollbar-thumb:hover,
 .search-results-page::-webkit-scrollbar-thumb:hover,
-.search-filters-panel-body::-webkit-scrollbar-thumb:hover,
 .account-page-body::-webkit-scrollbar-thumb:hover,
 .projects-page::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb);
+}
+
+.search-filters-panel-body:hover::-webkit-scrollbar-thumb:hover,
+.search-filters-panel-body:focus-within::-webkit-scrollbar-thumb:hover,
+.search-filters-panel-body.search-filters-panel-body--scrolling::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-thumb);
 }
 }
 
 .search-filters-group {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 1px solid var(--border);
 }
 
 .search-filters-group-header {
@@ -3294,7 +3326,6 @@ body:has(.app-root.player-visible) .search-refine-bar {
   width: var(--search-chat-panel-width);
   min-height: calc(100vh - var(--header-stack-height));
   background: var(--bg-page);
-  border-left: 1px solid var(--border);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -3352,6 +3383,10 @@ body:has(.app-root.player-visible) .search-refine-bar {
   border-bottom: 1px solid var(--border);
 }
 
+[data-theme="dark"] .search-side-panel-tabs {
+  border-bottom-color: var(--bg-card);
+}
+
 .search-side-panel-tab {
   font-family: 'Poppins', sans-serif;
   background: none;
@@ -3398,6 +3433,27 @@ body:has(.app-root.player-visible) .search-refine-bar {
 
 .search-side-panel--chat {
   background: var(--bg-page);
+}
+
+[data-theme="dark"] .app-content-wrapper--search-chat .search-side-panel {
+  border-right-color: var(--bg-card);
+}
+
+[data-theme="dark"] .app-content-wrapper--search .search-filters-panel {
+  border-right-color: var(--bg-card);
+}
+
+[data-theme="dark"] .search-filters-group {
+  border-bottom-color: var(--bg-card);
+}
+
+/* Search: seamless join between sidebar and side panel */
+.app-root:has(.app-content-wrapper--search) .sidebar {
+  border-right: none;
+}
+
+.app-content-wrapper--search :is(.search-filters-panel, .search-side-panel, .search-chat-panel) {
+  border-left: none;
 }
 
 .search-chat-panel-embedded {
@@ -3591,6 +3647,10 @@ body:has(.app-root.player-visible) .search-refine-bar {
 
 [data-theme="dark"] .search-chat-hint-chip {
   color: var(--text-secondary);
+  border-color: var(--account-surface-border);
+}
+
+[data-theme="light"] .search-chat-hint-chip {
   border-color: var(--account-surface-border);
 }
 
@@ -4525,6 +4585,13 @@ body:has(.app-root.player-visible) .search-refine-bar {
 :is(.tracks-actions, .tracks-mobile-toolbar-actions) :is(.project-customize-menu-trigger, .customize-view-menu-trigger, .search-sort-menu-trigger, .tracks-toolbar-action-btn, .tracks-toolbar-reorder-btn) {
   border-radius: 6px;
   transition: background 0.2s;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.tracks-toolbar-btn-label,
+.search-sort-menu-trigger-value {
+  white-space: nowrap;
 }
 
 .tracks-toolbar-action-btn svg,
@@ -9262,6 +9329,11 @@ body:has(.app-root.player-visible) .search-refine-bar {
   color: var(--text-primary);
   letter-spacing: 0.5px;
   margin-top: 4px;
+  white-space: nowrap;
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tracks-header-meta {
@@ -9291,6 +9363,7 @@ body:has(.app-root.player-visible) .search-refine-bar {
 
 .tracks-header-meta .tracks-actions {
   margin-top: 0;
+  flex-shrink: 0;
 }
 
 .tracks-selection-bar {
@@ -9562,7 +9635,7 @@ body:has(.app-root.player-visible) .search-refine-bar {
 }
 
 /* Toolbar labels collapse to icon-only with hover tooltips when header space is tight */
-@container tracks-toolbar (max-width: 720px) {
+@container tracks-toolbar (max-width: 840px) {
   :is(.tracks-actions, .tracks-mobile-toolbar-actions) :is(
     .customize-view-menu-trigger,
     .project-customize-menu-trigger,

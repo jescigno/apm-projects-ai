@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { SEARCH_QUICK_FILTERS, SEARCH_TAG_CATEGORIES } from '../constants/searchFilters';
 
 const FILTER_SECTION_ICONS = {
@@ -49,6 +49,26 @@ export default function SearchFiltersPanel({ embedded = false }) {
   const [quickFiltersOpen, setQuickFiltersOpen] = useState(true);
   const [tagsOpen, setTagsOpen] = useState(true);
   const [activeQuickFilters, setActiveQuickFilters] = useState(() => new Set());
+  const bodyRef = useRef(null);
+  const [isScrolling, setIsScrolling] = useState(false);
+
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el) return undefined;
+
+    let scrollEndTimer;
+    const onScroll = () => {
+      setIsScrolling(true);
+      clearTimeout(scrollEndTimer);
+      scrollEndTimer = setTimeout(() => setIsScrolling(false), 800);
+    };
+
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      el.removeEventListener('scroll', onScroll);
+      clearTimeout(scrollEndTimer);
+    };
+  }, []);
 
   const toggleQuickFilter = (label) => {
     setActiveQuickFilters((prev) => {
@@ -60,7 +80,10 @@ export default function SearchFiltersPanel({ embedded = false }) {
   };
 
   const body = (
-    <div className="search-filters-panel-body">
+    <div
+      ref={bodyRef}
+      className={`search-filters-panel-body${isScrolling ? ' search-filters-panel-body--scrolling' : ''}`}
+    >
         <section className="search-filters-group">
           <button
             type="button"
