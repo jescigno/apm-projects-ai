@@ -162,6 +162,7 @@ function AppContent() {
   const projectsDragOverlayClearTimerRef = useRef(null);
   const folderReorderLandTimerRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [headerSearchInput, setHeaderSearchInput] = useState('');
   const [searchChatOpen, setSearchChatOpen] = useState(false);
   const [searchChatEngaged, setSearchChatEngaged] = useState(false);
   const [searchSidePanelTab, setSearchSidePanelTab] = useState('chat');
@@ -572,6 +573,7 @@ function AppContent() {
       setProjectsPanelOpen(false);
     } else {
       setSearchQuery('');
+      setHeaderSearchInput('');
       setSearchChatOpen(false);
       setSearchChatEngaged(false);
       setSearchChatMessages([]);
@@ -701,8 +703,25 @@ function AppContent() {
 
   const handleRecentSearchSelect = useCallback((item) => {
     setSearchSidePanelTab('chat');
+    setHeaderSearchInput(item.label);
     setSearchQuery(item.label);
   }, []);
+
+  const handleSearchClear = useCallback(() => {
+    setHeaderSearchInput('');
+    setSearchQuery('');
+  }, []);
+
+  const handleSearchSubmit = useCallback((query) => {
+    const trimmed = query.trim();
+    if (!trimmed) return;
+
+    setHeaderSearchInput(trimmed);
+    setSearchQuery(trimmed);
+    if (location.pathname !== ROUTE_SEARCH) {
+      navigate(ROUTE_SEARCH);
+    }
+  }, [location.pathname, navigate]);
 
   const handleRefineSearch = useCallback(({ refineQuery, folderIds = [] }) => {
     const trimmed = refineQuery?.trim();
@@ -752,8 +771,10 @@ function AppContent() {
     <div className={currentTrack || isPlayerClosing ? 'app-root player-visible' : 'app-root'}>
       <Header
         onOpenProjectsPanel={openProjectsPanel}
-        searchQuery={isSearchRoute ? searchQuery : ''}
-        onSearchQueryChange={isSearchRoute ? setSearchQuery : undefined}
+        searchQuery={headerSearchInput}
+        onSearchQueryChange={setHeaderSearchInput}
+        onSearchSubmit={handleSearchSubmit}
+        onSearchClear={handleSearchClear}
         headerMenuRef={headerMenuRef}
       />
       <Sidebar onHomeClick={handleHomeNavClick} />

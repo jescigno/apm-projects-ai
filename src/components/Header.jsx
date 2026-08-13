@@ -118,9 +118,21 @@ function ModeToggle({ isDark, setIsDark, className = '' }) {
   );
 }
 
-function Header({ onOpenProjectsPanel, searchQuery = '', onSearchQueryChange, headerMenuRef }) {
+function Header({
+  onOpenProjectsPanel,
+  searchQuery = '',
+  onSearchQueryChange,
+  onSearchSubmit,
+  onSearchClear,
+  headerMenuRef,
+}) {
   const navigate = useNavigate();
   const hasSearchQuery = searchQuery.trim().length > 0;
+
+  const handleSearchFormSubmit = (event) => {
+    event.preventDefault();
+    onSearchSubmit?.(searchQuery);
+  };
   const [menuOpen, setMenuOpen] = useState(false);
   const [myApmOpen, setMyApmOpen] = useState(true);
   const [mobileNavOpen, setMobileNavOpen] = useState(null);
@@ -209,7 +221,7 @@ function Header({ onOpenProjectsPanel, searchQuery = '', onSearchQueryChange, he
             className="logo-img"
           />
         </a>
-        <div className={`search-bar${hasSearchQuery ? ' search-bar--has-query' : ''}`}>
+        <form className={`search-bar${hasSearchQuery ? ' search-bar--has-query' : ''}`} onSubmit={handleSearchFormSubmit}>
           <img
             src="/icons/search.svg"
             alt=""
@@ -230,7 +242,7 @@ function Header({ onOpenProjectsPanel, searchQuery = '', onSearchQueryChange, he
               type="button"
               className="search-bar-clear-btn"
               aria-label="Clear search"
-              onClick={() => onSearchQueryChange?.('')}
+              onClick={() => onSearchClear?.()}
             >
               <svg
                 className="search-bar-clear-icon"
@@ -250,7 +262,7 @@ function Header({ onOpenProjectsPanel, searchQuery = '', onSearchQueryChange, he
               </svg>
             </button>
           )}
-        </div>
+        </form>
         <div className="header-end-wide">
           <nav className="header-nav-wide" aria-label="Main navigation">
             {HEADER_MENU_OPTIONS.map(({ label, href }) => {

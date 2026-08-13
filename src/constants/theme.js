@@ -190,7 +190,7 @@ export const THEME_PALETTES = {
     '--bg-panel': '#FFFFFF',
     '--bg-nested': '#F9F9F9',
     '--bg-dropdown': '#FFFFFF',
-    '--bg-search': '#D9D9D9',
+    '--bg-search': '#FFFFFF',
     '--surface-default': '#FFFFFF',
     '--surface-raised': '#FFFFFF',
     '--surface-muted': '#F9F9F9',
