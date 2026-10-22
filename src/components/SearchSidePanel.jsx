@@ -1,37 +1,82 @@
 import SearchChatPanel, {
   SearchChatPanelResizeHandle,
 } from './SearchChatPanel';
-import SearchFiltersPanel from './SearchFiltersPanel';
+import SearchFiltersPanel, { SearchSessionList } from './SearchFiltersPanel';
 import {
   SEARCH_CHAT_PANEL_MAX_WIDTH,
   SEARCH_CHAT_PANEL_MIN_WIDTH,
 } from '../constants/searchChat';
 
-function SearchSidePanelTabs({ activeTab, onTabChange }) {
+const VERSION_1_TABS = [
+  { id: 'filters', label: 'Filters' },
+  { id: 'chat', label: 'Chat' },
+];
+
+const VERSION_2_TABS = [
+  { id: 'filters', label: 'Filters' },
+  { id: 'history', label: 'History' },
+  { id: 'chat', label: 'Chat' },
+];
+
+function SearchFiltersForVersion({
+  embedded = false,
+  resultsVersion = 1,
+  sessions = null,
+  activeSessionId = null,
+  onSessionSelect,
+  showSessions = true,
+  width,
+  onWidthChange,
+}) {
+  const isV2 = resultsVersion === 2;
+
+  return (
+    <SearchFiltersPanel
+      key={resultsVersion}
+      embedded={embedded}
+      defaultSectionsOpen={!isV2}
+      exclusiveSections={isV2}
+      sessions={isV2 && showSessions ? sessions : null}
+      activeSessionId={activeSessionId}
+      onSessionSelect={onSessionSelect}
+      width={embedded ? undefined : width}
+      onWidthChange={embedded ? undefined : onWidthChange}
+    />
+  );
+}
+
+function SearchSidePanelTabs({ activeTab, onTabChange, tabs }) {
   return (
     <div className="search-side-panel-tabs" role="tablist" aria-label="Search panel">
-      <button
-        type="button"
-        role="tab"
-        id="search-side-panel-tab-filters"
-        aria-selected={activeTab === 'filters'}
-        aria-controls="search-side-panel-panel-filters"
-        className={`search-side-panel-tab${activeTab === 'filters' ? ' search-side-panel-tab--active' : ''}`}
-        onClick={() => onTabChange('filters')}
-      >
-        Filters
-      </button>
-      <button
-        type="button"
-        role="tab"
-        id="search-side-panel-tab-chat"
-        aria-selected={activeTab === 'chat'}
-        aria-controls="search-side-panel-panel-chat"
-        className={`search-side-panel-tab${activeTab === 'chat' ? ' search-side-panel-tab--active' : ''}`}
-        onClick={() => onTabChange('chat')}
-      >
-        Chat
-      </button>
+      {tabs.map((tab) => {
+        const selected = activeTab === tab.id;
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            id={`search-side-panel-tab-${tab.id}`}
+            aria-selected={selected}
+            aria-controls={`search-side-panel-panel-${tab.id}`}
+            className={`search-side-panel-tab${selected ? ' search-side-panel-tab--active' : ''}`}
+            onClick={() => onTabChange(tab.id)}
+          >
+            {tab.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function SearchHistoryPanel({ sessions, activeSessionId, onSessionSelect }) {
+  return (
+    <div className="search-history-panel">
+      <SearchSessionList
+        sessions={sessions}
+        activeSessionId={activeSessionId}
+        onSessionSelect={onSessionSelect}
+      />
     </div>
   );
 }
@@ -41,14 +86,30 @@ export default function SearchSidePanel({
   chatEngaged = false,
   sidePanelTab,
   onSidePanelTabChange,
+  searchQuery = '',
   messages,
   onRefineSubmit,
   onHintSelect,
   width,
   onWidthChange,
+  resultsVersion = 1,
+  sessions = null,
+  activeSessionId = null,
+  onSessionSelect,
+  filtersWidth,
+  onFiltersWidthChange,
 }) {
   if (!searchChatOpen) {
-    return <SearchFiltersPanel />;
+    return (
+      <SearchFiltersForVersion
+        resultsVersion={resultsVersion}
+        sessions={sessions}
+        activeSessionId={activeSessionId}
+        onSessionSelect={onSessionSelect}
+        width={filtersWidth}
+        onWidthChange={onFiltersWidthChange}
+      />
+    );
   }
 
   const panelStyle = {
@@ -56,13 +117,16 @@ export default function SearchSidePanel({
     flexBasis: width,
   };
 
-  const isChatTab = sidePanelTab === 'chat';
+  const tabs = resultsVersion === 2 ? VERSION_2_TABS : VERSION_1_TABS;
+  const activeTab = tabs.some((tab) => tab.id === sidePanelTab) ? sidePanelTab : 'chat';
+  const panelLabel =
+    activeTab === 'chat' ? 'Search chat' : activeTab === 'history' ? 'Search history' : 'Search filters';
 
   return (
     <aside
-      className={`search-side-panel search-chat-panel search-side-panel--${sidePanelTab}`}
+      className={`search-side-panel search-chat-panel search-side-panel--${activeTab}`}
       style={panelStyle}
-      aria-label={isChatTab ? 'Search chat' : 'Search filters'}
+      aria-label={panelLabel}
     >
       <SearchChatPanelResizeHandle
         width={width}
@@ -70,23 +134,37 @@ export default function SearchSidePanel({
         minWidth={SEARCH_CHAT_PANEL_MIN_WIDTH}
         maxWidth={SEARCH_CHAT_PANEL_MAX_WIDTH}
       />
-      <SearchSidePanelTabs activeTab={sidePanelTab} onTabChange={onSidePanelTabChange} />
+      <SearchSidePanelTabs activeTab={activeTab} onTabChange={onSidePanelTabChange} tabs={tabs} />
       <div
         role="tabpanel"
-        id={isChatTab ? 'search-side-panel-panel-chat' : 'search-side-panel-panel-filters'}
-        aria-labelledby={isChatTab ? 'search-side-panel-tab-chat' : 'search-side-panel-tab-filters'}
+        id={`search-side-panel-panel-${activeTab}`}
+        aria-labelledby={`search-side-panel-tab-${activeTab}`}
         className="search-side-panel-content"
       >
-        {isChatTab ? (
+        {activeTab === 'chat' ? (
           <SearchChatPanel
             embedded
+            searchQuery={searchQuery}
             chatEngaged={chatEngaged}
             messages={messages}
             onRefineSubmit={onRefineSubmit}
             onHintSelect={onHintSelect}
           />
+        ) : activeTab === 'history' ? (
+          <SearchHistoryPanel
+            sessions={sessions}
+            activeSessionId={activeSessionId}
+            onSessionSelect={onSessionSelect}
+          />
         ) : (
-          <SearchFiltersPanel embedded />
+          <SearchFiltersForVersion
+            embedded
+            resultsVersion={resultsVersion}
+            showSessions={false}
+            sessions={sessions}
+            activeSessionId={activeSessionId}
+            onSessionSelect={onSessionSelect}
+          />
         )}
       </div>
     </aside>

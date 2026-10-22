@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, Fragment } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { LAYOUT_WIDE_MIN_WIDTH } from '../constants/layout';
-import { ROUTE_FAVORITES, ROUTE_ACCOUNT, ROUTE_NOTIFICATIONS } from '../constants/routes';
+import { ROUTE_ADMIN, ROUTE_FAVORITES, ROUTE_ACCOUNT, ROUTE_NOTIFICATIONS } from '../constants/routes';
 import { applyTheme, getStoredTheme } from '../utils/theme';
 
 const HEADER_MENU_OPTIONS = [
@@ -44,6 +44,7 @@ const HEADER_NAV_DROPDOWNS = {
 
 /** Profile icon menu (wide + mobile My APM section). Set routes as pages exist. */
 const PROFILE_MENU_ITEMS = [
+  { label: 'Admin Console', to: ROUTE_ADMIN },
   { label: 'Projects', action: 'projectsPanel' },
   { label: 'Notifications', to: ROUTE_NOTIFICATIONS },
   { label: 'Favorites', to: ROUTE_FAVORITES },
@@ -127,11 +128,26 @@ function Header({
   headerMenuRef,
 }) {
   const navigate = useNavigate();
+  const searchInputRef = useRef(null);
   const hasSearchQuery = searchQuery.trim().length > 0;
+
+  const submitSearch = () => {
+    const submitted = searchQuery.trim();
+    if (!submitted) return;
+    onSearchSubmit?.(submitted);
+    onSearchQueryChange?.('');
+    searchInputRef.current?.blur();
+  };
 
   const handleSearchFormSubmit = (event) => {
     event.preventDefault();
-    onSearchSubmit?.(searchQuery);
+    submitSearch();
+  };
+
+  const handleSearchInputKeyDown = (event) => {
+    if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
+    event.preventDefault();
+    submitSearch();
   };
   const [menuOpen, setMenuOpen] = useState(false);
   const [myApmOpen, setMyApmOpen] = useState(true);
@@ -232,10 +248,12 @@ function Header({
             aria-hidden
           />
           <input
+            ref={searchInputRef}
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchQueryChange?.(e.target.value)}
-            placeholder="Add keywords, paste a link, or try a prompt like 'climactic mountain summit at dawn'"
+            onKeyDown={handleSearchInputKeyDown}
+            placeholder="Add keywords, paste a link, or try a prompt like 'climactic mountain summit at dawn' to start a new search"
           />
           {hasSearchQuery && (
             <button

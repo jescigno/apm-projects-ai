@@ -25,3 +25,32 @@ export function buildRefineAssistantResponse(refineQuery, folderNames = []) {
 export function buildFollowUpAssistantResponse(message) {
   return `Understood. I've applied "${message}" to your search. Check the updated results — or ask another follow-up to keep shaping the list.`;
 }
+
+const SEARCH_CHAT_SESSION_SEEDS = [
+  { id: 'session-stadium', query: 'stadium rock anthem for live sports broadcast', timeLabel: '30 minutes ago' },
+  { id: 'session-milan', query: 'milan olympics broadcast package music', timeLabel: '2 hours ago' },
+  { id: 'session-promo', query: 'promo 30 second uplifting corporate', timeLabel: '1 day ago' },
+  { id: 'session-acoustic', query: 'acoustic indie singer songwriter', timeLabel: '2 days ago' },
+  { id: 'session-instrumental', query: 'instrumental only no vocals', timeLabel: '5 days ago' },
+  { id: 'session-orchestral', query: 'uplifting orchestral build to climax', timeLabel: '1 week ago' },
+];
+
+export function createChatSession({ id, query, timeLabel = 'Just now', messages }) {
+  return {
+    id,
+    title: query,
+    query,
+    timeLabel,
+    messages:
+      messages ??
+      [
+        { id: `${id}-user`, role: 'user', content: query },
+        { id: `${id}-assistant`, role: 'assistant', content: buildRefineAssistantResponse(query) },
+      ],
+  };
+}
+
+/** Past chat conversations shown under Sessions in search results version 2. */
+export const SEARCH_CHAT_SESSION_HISTORY = SEARCH_CHAT_SESSION_SEEDS.map((session) =>
+  createChatSession(session)
+);

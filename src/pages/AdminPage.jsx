@@ -1,17 +1,12 @@
 import { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { ADMIN_TABS } from '../constants/adminPage';
-import { LAYOUT_COMPACT_MAX_WIDTH } from '../constants/layout';
-import {
-  ROUTE_ADMIN,
-  ROUTE_ADMIN_NOTIFICATIONS,
-  ROUTE_ADMIN_SETTINGS,
-  ROUTE_ADMIN_TEAM,
-} from '../constants/routes';
-import AdminActivityTab from '../components/AdminActivityTab';
-import AdminTeamTab from '../components/AdminTeamTab';
-import { HeaderMenuButton } from '../components/Header';
+import { useLocation } from 'react-router-dom';
+import { ADMIN_ACTIVITY_DEFAULT_DATE_FILTER, ADMIN_ACTIVITY_DEFAULT_TEAM_ID } from '../constants/adminActivity';
+import { ADMIN_TEAM_DEFAULT_ID } from '../constants/adminTeam';
+import { ADMIN_TABS, adminPageTitleFromPath, adminTabIdFromPath } from '../constants/adminPage';
+import AccountPersonalTab from '../components/AccountPersonalTab';
+import AdminActivityTab, { AdminActivityFilters } from '../components/AdminActivityTab';
+import AdminLayout from '../components/AdminLayout';
+import AdminTeamTab, { AdminTeamHeaderActions, AdminTeamTitleDropdown } from '../components/AdminTeamTab';
 
 function AdminPlaceholderPanel({ title, description }) {
   return (
@@ -44,117 +39,84 @@ function AdminNotificationsTab() {
   );
 }
 
-function tabIdFromPath(pathname) {
-  if (pathname === ROUTE_ADMIN_TEAM) return 'team';
-  if (pathname === ROUTE_ADMIN_SETTINGS) return 'settings';
-  if (pathname === ROUTE_ADMIN_NOTIFICATIONS) return 'notifications';
-  return 'activity';
-}
-
-function routeFromTabId(id) {
-  if (id === 'team') return ROUTE_ADMIN_TEAM;
-  if (id === 'settings') return ROUTE_ADMIN_SETTINGS;
-  if (id === 'notifications') return ROUTE_ADMIN_NOTIFICATIONS;
-  return ROUTE_ADMIN;
-}
-
-function AdminMobileTitlePortal({ headerMenuRef }) {
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  useEffect(() => {
-    if (!headerMenuRef?.current) return undefined;
-    return headerMenuRef.current.subscribe(setMenuOpen);
-  }, [headerMenuRef]);
-
-  return createPortal(
-    <div className="account-page-mobile-header-bar">
-      <h1 className="account-page-title project-mobile-hero__title account-page-title--mobile-portal" id="admin-mobile-title">
-        <span className="project-mobile-hero__title-clip">
-          <span className="project-mobile-hero__title-text">Admin</span>
-        </span>
-      </h1>
-      <HeaderMenuButton
-        open={menuOpen}
-        onClick={() => headerMenuRef?.current?.toggleMenu()}
-        className="account-page-mobile-header-bar__menu"
-      />
-    </div>,
-    document.body
-  );
-}
-
-export default function AdminPage({ headerMenuRef, onOpenMemberActivity }) {
+export default function AdminPage({ onOpenMemberActivity, onAdminDashboardNav }) {
   const location = useLocation();
-  const navigate = useNavigate();
-  const [mobileLayout, setMobileLayout] = useState(false);
-  const [activeTab, setActiveTab] = useState(() => tabIdFromPath(location.pathname));
+  const [activeTab, setActiveTab] = useState(() => adminTabIdFromPath(location.pathname));
+  const [activityTeamFilter, setActivityTeamFilter] = useState(ADMIN_ACTIVITY_DEFAULT_TEAM_ID);
+  const [teamId, setTeamId] = useState(ADMIN_TEAM_DEFAULT_ID);
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [activityDateFilter, setActivityDateFilter] = useState(ADMIN_ACTIVITY_DEFAULT_DATE_FILTER);
+  const [activityCustomDateRange, setActivityCustomDateRange] = useState({ start: null, end: null });
 
   useEffect(() => {
-    setActiveTab(tabIdFromPath(location.pathname));
+    setActiveTab(adminTabIdFromPath(location.pathname));
   }, [location.pathname]);
 
-  useEffect(() => {
-    const mq = window.matchMedia(`(max-width: ${LAYOUT_COMPACT_MAX_WIDTH}px)`);
-    const sync = () => setMobileLayout(mq.matches);
-    sync();
-    mq.addEventListener('change', sync);
-    return () => mq.removeEventListener('change', sync);
-  }, []);
+  const activePageTitle =
+    activeTab === 'team' ? (
+      <AdminTeamTitleDropdown
+        teamId={teamId}
+        onTeamChange={setTeamId}
+      />
+    ) : (
+      adminPageTitleFromPath(location.pathname)
+    );
 
-  const handleTabChange = (id) => {
-    setActiveTab(id);
-    navigate(routeFromTabId(id));
-  };
+  const headerActions =
+    activeTab === 'activity' ? (
+      <AdminActivityFilters
+        teamFilter={activityTeamFilter}
+        onTeamFilterChange={setActivityTeamFilter}
+        dateFilter={activityDateFilter}
+        customDateRange={activityCustomDateRange}
+        onDateFilterChange={setActivityDateFilter}
+        onCustomDateRangeChange={setActivityCustomDateRange}
+      />
+    ) : activeTab === 'team' ? (
+      <AdminTeamHeaderActions
+        onBulkImport={() => setBulkImportOpen(true)}
+        onAddMembers={() => setAddOpen(true)}
+      />
+    ) : null;
 
   return (
-    <div className="account-page admin-page">
-      {mobileLayout && <AdminMobileTitlePortal headerMenuRef={headerMenuRef} />}
-      <div className="account-page-header project-mobile-hero">
-        {!mobileLayout && (
-          <h1 className="account-page-title project-mobile-hero__title" id="admin-title">
-            <span className="project-mobile-hero__title-clip">
-              <span className="project-mobile-hero__title-text">Admin</span>
-            </span>
-          </h1>
-        )}
-        <div className="account-page-tabs-row admin-page-tabs-row">
-          <div className="account-page-tabs tabs" role="tablist" aria-label="Admin sections">
-            {ADMIN_TABS.map(({ id, label }) => (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                id={`admin-tab-${id}`}
-                aria-selected={activeTab === id}
-                aria-controls={`admin-panel-${id}`}
-                data-tab={id}
-                className={`tab ${activeTab === id ? 'active' : ''}`}
-                onClick={() => handleTabChange(id)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+    <AdminLayout
+      pageTitle={activePageTitle}
+      headerActions={headerActions}
+      onAdminDashboardNav={onAdminDashboardNav}
+    >
+      {ADMIN_TABS.map(({ id }) => (
+        <div
+          key={id}
+          id={`admin-panel-${id}`}
+          role="tabpanel"
+          aria-labelledby={`admin-tab-${id}`}
+          hidden={activeTab !== id}
+          className="admin-page-panel"
+        >
+          {id === 'activity' && (
+            <AdminActivityTab
+              teamFilter={activityTeamFilter}
+              dateFilter={activityDateFilter}
+              customDateRange={activityCustomDateRange}
+            />
+          )}
+          {id === 'team' && (
+            <AdminTeamTab
+              teamId={teamId}
+              bulkImportOpen={bulkImportOpen}
+              onBulkImportOpenChange={setBulkImportOpen}
+              addOpen={addOpen}
+              onAddOpenChange={setAddOpen}
+              onOpenMemberActivity={onOpenMemberActivity}
+            />
+          )}
+          {id === 'account' && <AccountPersonalTab />}
+          {id === 'settings' && <AdminSettingsTab />}
+          {id === 'notifications' && <AdminNotificationsTab />}
         </div>
-      </div>
-
-      <div className="account-page-body">
-        {ADMIN_TABS.map(({ id }) => (
-          <div
-            key={id}
-            id={`admin-panel-${id}`}
-            role="tabpanel"
-            aria-labelledby={`admin-tab-${id}`}
-            hidden={activeTab !== id}
-            className="account-page-panel"
-          >
-            {id === 'activity' && <AdminActivityTab />}
-            {id === 'team' && <AdminTeamTab onOpenMemberActivity={onOpenMemberActivity} />}
-            {id === 'settings' && <AdminSettingsTab />}
-            {id === 'notifications' && <AdminNotificationsTab />}
-          </div>
-        ))}
-      </div>
-    </div>
+      ))}
+    </AdminLayout>
   );
 }

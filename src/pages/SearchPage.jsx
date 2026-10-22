@@ -1,9 +1,11 @@
 import SearchHomeContent from '../components/SearchHomeContent';
 import SearchResultsContent from '../components/SearchResultsContent';
+import SearchResultsContentV2 from '../components/SearchResultsContentV2';
 import { SEARCH_RESULTS_TRACKS } from '../components/TrackList';
 
 export default function SearchPage({
   searchQuery,
+  resultsVersion = 1,
   onRecentSearchSelect,
   soundsLikePanelOpen,
   onSoundsLikeClick,
@@ -15,9 +17,11 @@ export default function SearchPage({
   const showResults = Boolean(searchQuery?.trim());
 
   if (showResults) {
+    const Results = resultsVersion === 2 ? SearchResultsContentV2 : SearchResultsContent;
+
     return (
       <div className="search-results">
-        <SearchResultsContent
+        <Results
           soundsLikePanelOpen={soundsLikePanelOpen}
           onSoundsLikeClick={onSoundsLikeClick}
           onSoundsLikeWithSelection={onSoundsLikeWithSelection}

@@ -44,7 +44,58 @@ function NavSearchIcon({ theme }) {
   );
 }
 
-function Sidebar({ onHomeClick }) {
+const SEARCH_RESULTS_VERSIONS = [1, 2];
+
+function VersionSwitch({ value, onChange }) {
+  const selectVersion = (version) => {
+    if (version !== value) onChange?.(version);
+  };
+
+  const onKeyDown = (event) => {
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+    event.preventDefault();
+    const index = SEARCH_RESULTS_VERSIONS.indexOf(value);
+    const nextIndex =
+      event.key === 'ArrowDown'
+        ? Math.min(index + 1, SEARCH_RESULTS_VERSIONS.length - 1)
+        : Math.max(index - 1, 0);
+    selectVersion(SEARCH_RESULTS_VERSIONS[nextIndex]);
+    event.currentTarget.querySelectorAll('[role="radio"]')[nextIndex]?.focus();
+  };
+
+  return (
+    <div className="version-switch" role="radiogroup" aria-labelledby="version-switch-label" onKeyDown={onKeyDown}>
+      <span id="version-switch-label" className="version-switch__label">
+        Version
+      </span>
+      <div className="version-switch__track">
+        {SEARCH_RESULTS_VERSIONS.map((version) => {
+          const selected = version === value;
+          return (
+            <button
+              key={version}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              tabIndex={selected ? 0 : -1}
+              className={`version-switch__option${selected ? ' version-switch__option--selected' : ''}`}
+              onClick={() => selectVersion(version)}
+            >
+              {version}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function Sidebar({
+  onHomeClick,
+  searchResultsVersion = 1,
+  onSearchResultsVersionChange,
+  showVersionSwitch = true,
+}) {
   const theme = useThemeName();
 
   return (
@@ -84,6 +135,9 @@ function Sidebar({ onHomeClick }) {
         )}
       </nav>
       <div className="sidebar-footer">
+        {showVersionSwitch ? (
+          <VersionSwitch value={searchResultsVersion} onChange={onSearchResultsVersionChange} />
+        ) : null}
         <NavLink
           to={ROUTE_DESIGN_SYSTEM}
           className={({ isActive }) => `nav-item nav-item--design-system${isActive ? ' nav-item--active' : ''}`}

@@ -13,7 +13,13 @@ function getFolderNames(folderIds = []) {
     .filter(Boolean);
 }
 
-export function SearchChatPanelResizeHandle({ onWidthChange, width, minWidth, maxWidth }) {
+export function SearchChatPanelResizeHandle({
+  onWidthChange,
+  width,
+  minWidth,
+  maxWidth,
+  label = 'Resize chat panel',
+}) {
   const resizeRef = useRef(null);
   const widthRef = useRef(width);
   widthRef.current = width;
@@ -55,7 +61,7 @@ export function SearchChatPanelResizeHandle({ onWidthChange, width, minWidth, ma
       className="search-chat-panel-resize-handle"
       role="separator"
       aria-orientation="vertical"
-      aria-label="Resize chat panel"
+      aria-label={label}
     />
   );
 }
@@ -85,6 +91,7 @@ function SearchChatHints({ layout = 'carousel', onHintSelect }) {
 }
 
 export function SearchChatPanelContent({
+  searchQuery = '',
   messages = [],
   chatEngaged = false,
   onRefineSubmit,
@@ -98,15 +105,23 @@ export function SearchChatPanelContent({
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages, chatEngaged]);
 
+  const threadMessages = messages.filter((message, index) => {
+    if (index !== 0 || message.role !== 'user') return true;
+    return message.content !== searchQuery.trim();
+  });
+
   return (
     <>
+      {searchQuery.trim() ? (
+        <p className="search-chat-query">{searchQuery.trim()}</p>
+      ) : null}
       <div
         className={`search-chat-panel-body${chatEngaged ? '' : ' search-chat-panel-body--intro'}`}
         ref={bodyRef}
       >
         {chatEngaged ? (
           <div className="search-chat-thread">
-            {messages.map((message) => {
+            {threadMessages.map((message) => {
               const folderNames = message.folderIds ? getFolderNames(message.folderIds) : [];
               return (
                 <div
@@ -144,6 +159,7 @@ export function SearchChatPanelContent({
 }
 
 export default function SearchChatPanel({
+  searchQuery = '',
   messages = [],
   chatEngaged = false,
   onRefineSubmit,
@@ -156,6 +172,7 @@ export default function SearchChatPanel({
 }) {
   const content = (
     <SearchChatPanelContent
+      searchQuery={searchQuery}
       messages={messages}
       chatEngaged={chatEngaged}
       onRefineSubmit={onRefineSubmit}

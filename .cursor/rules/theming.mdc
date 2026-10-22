@@ -1,0 +1,44 @@
+---
+description: Theme tokens and light/dark mode conventions for UI colors
+globs: src/**/*.{css,jsx,js}
+alwaysApply: false
+---
+
+# Theming (dark + light mode)
+
+## Source of truth
+
+- Token names + dark/light values: `src/constants/theme.js` (`CSS_VARS`, `THEME_PALETTES`)
+- Runtime apply/persist: `src/utils/theme.js` (`applyTheme`, `getStoredTheme`)
+- CSS definitions: `src/index.css` — `:root, [data-theme="dark"]` and `[data-theme="light"]`
+- Theme attribute: `data-theme="dark" | "light"` on `<html>`
+
+## Rules for new UI
+
+1. **Never hardcode hex/rgb** in CSS or JSX for themeable UI. Use `var(--token-name)`.
+2. **Add tokens in three places** when introducing a new color:
+   - `CSS_VARS` + both palettes in `src/constants/theme.js`
+   - `:root, [data-theme="dark"]` and `[data-theme="light"]` in `index.css`
+3. **Prefer semantic tokens** (`--surface-hover`, `--text-on-chrome`) over literal colors (`#303030`).
+4. **JS inline styles** that need theme colors: `themeVar(CSS_VARS.accent.soundsLike)` from `src/constants/theme.js`.
+5. **Profile/avatar colors** stay on `--profile-*` tokens; do not inline hex for avatars.
+6. **Carousel/search accents** with fixed brand colors may stay as data constants; use `--carousel-accent-fallback` for defaults.
+
+## Token groups
+
+| Group | Examples | Use for |
+|-------|----------|---------|
+| `--bg-chrome` | Header bar | `#E6E6E6` light |
+| `--bg-sidebar` | Sidebar + filters panel | `#F2F2F2` light |
+| `--bg-page` / `--bg-dark` | Main content | `#FFFFFF` light |
+| `--bg-search` | Search field fill | `#D9D9D9` light |
+| `--surface-*` | default, hover, selected | Cards, rows, panels |
+| `--text-*` | primary, on-chrome, link | Typography |
+| `--border-*` | default, strong, divider | Borders/separators |
+| `--accent-*` | red, sounds-like | Brand/interactive accents |
+| `--overlay-*` | hover, border | Translucent states |
+| `--account-*` | surface, surface-text | Account/notifications (aliases) |
+
+## Testing both modes
+
+When changing colors, verify in **dark** (default) and **light** (header toggle or Account → Display mode). If a component still looks wrong in light mode, migrate its hardcoded colors to tokens rather than adding `[data-theme="light"]` one-offs.

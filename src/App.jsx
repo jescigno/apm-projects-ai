@@ -36,9 +36,11 @@ import {
   ROUTE_ACCOUNT_NOTIFICATIONS,
   ROUTE_ADMIN,
   ROUTE_ADMIN_TEAM,
+  ROUTE_ADMIN_ACCOUNT,
   ROUTE_ADMIN_SETTINGS,
   ROUTE_ADMIN_NOTIFICATIONS,
   ROUTE_DESIGN_SYSTEM,
+  ADMIN_ROUTES,
 } from './constants/routes';
 import AdminPage from './pages/AdminPage';
 import {
@@ -86,9 +88,14 @@ import { SOUNDS_LIKE_PANEL_INITIAL_ITEMS, createSoundsLikeItems } from './consta
 import { COMMENTS_PANEL_INITIAL_ITEMS } from './constants/commentsPanel';
 import { CLOCK_PANEL_INITIAL_ITEMS } from './constants/clockPanel';
 import {
+  SEARCH_FILTERS_PANEL_DEFAULT_WIDTH,
+} from './components/SearchFiltersPanel';
+import {
   buildFollowUpAssistantResponse,
   buildRefineAssistantResponse,
+  createChatSession,
   SEARCH_CHAT_PANEL_DEFAULT_WIDTH,
+  SEARCH_CHAT_SESSION_HISTORY,
 } from './constants/searchChat';
 
 const PANEL_MIN_WIDTH = 263;
@@ -162,12 +169,16 @@ function AppContent() {
   const projectsDragOverlayClearTimerRef = useRef(null);
   const folderReorderLandTimerRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResultsVersion, setSearchResultsVersion] = useState(2);
   const [headerSearchInput, setHeaderSearchInput] = useState('');
   const [searchChatOpen, setSearchChatOpen] = useState(false);
   const [searchChatEngaged, setSearchChatEngaged] = useState(false);
   const [searchSidePanelTab, setSearchSidePanelTab] = useState('chat');
   const [searchChatMessages, setSearchChatMessages] = useState([]);
+  const [chatSessions, setChatSessions] = useState(SEARCH_CHAT_SESSION_HISTORY);
+  const [activeChatSessionId, setActiveChatSessionId] = useState(null);
   const [searchChatPanelWidth, setSearchChatPanelWidth] = useState(SEARCH_CHAT_PANEL_DEFAULT_WIDTH);
+  const [searchFiltersPanelWidth, setSearchFiltersPanelWidth] = useState(SEARCH_FILTERS_PANEL_DEFAULT_WIDTH);
   const lastSeededSearchQueryRef = useRef('');
   const headerMenuRef = useRef(null);
   const { currentTrack, isPlayerClosing } = usePlayer();
@@ -577,6 +588,7 @@ function AppContent() {
       setSearchChatOpen(false);
       setSearchChatEngaged(false);
       setSearchChatMessages([]);
+      setActiveChatSessionId(null);
       lastSeededSearchQueryRef.current = '';
     }
   }, [location.pathname]);
@@ -587,6 +599,7 @@ function AppContent() {
       setSearchChatOpen(false);
       setSearchChatEngaged(false);
       setSearchChatMessages([]);
+      setActiveChatSessionId(null);
       lastSeededSearchQueryRef.current = '';
       return;
     }
@@ -594,6 +607,7 @@ function AppContent() {
     if (lastSeededSearchQueryRef.current !== trimmed) {
       setSearchChatEngaged(false);
       setSearchChatMessages([]);
+      setActiveChatSessionId(null);
       lastSeededSearchQueryRef.current = trimmed;
     }
 
@@ -632,13 +646,12 @@ function AppContent() {
   }, [clockPanelOpen]);
 
   useEffect(() => {
-    const adminRoutes = [
-      ROUTE_ADMIN,
-      ROUTE_ADMIN_TEAM,
-      ROUTE_ADMIN_SETTINGS,
-      ROUTE_ADMIN_NOTIFICATIONS,
-    ];
-    if (!adminRoutes.includes(location.pathname)) {
+    if (!ADMIN_ROUTES.includes(location.pathname)) {
+      setTeamMemberActivityPanelOpen(false);
+      setActiveTeamMemberForActivity(null);
+      return;
+    }
+    if (location.pathname !== ROUTE_ADMIN) {
       setTeamMemberActivityPanelOpen(false);
       setActiveTeamMemberForActivity(null);
     }
@@ -689,39 +702,46 @@ function AppContent() {
   const isSearchRoute = location.pathname === ROUTE_SEARCH;
   const isProjectsRoute = location.pathname === ROUTE_PROJECT_DETAILS;
   const isAccountRoute =
-    location.pathname === ROUTE_ACCOUNT || location.pathname === ROUTE_ACCOUNT_NOTIFICATIONS;
-  const isAdminRoute = [
-    ROUTE_ADMIN,
-    ROUTE_ADMIN_TEAM,
-    ROUTE_ADMIN_SETTINGS,
-    ROUTE_ADMIN_NOTIFICATIONS,
-  ].includes(location.pathname);
+    location.pathname === ROUTE_ACCOUNT ||
+    location.pathname === ROUTE_ACCOUNT_NOTIFICATIONS;
+  const isAdminConsole = ADMIN_ROUTES.includes(location.pathname);
   const isNotificationsRoute = location.pathname === ROUTE_NOTIFICATIONS;
   const isDesignSystemRoute = location.pathname === ROUTE_DESIGN_SYSTEM;
   const isFullBleedRoute =
-    isAccountRoute || isAdminRoute || isNotificationsRoute || isDesignSystemRoute;
+    isAccountRoute || isAdminConsole || isNotificationsRoute || isDesignSystemRoute;
 
-  const handleRecentSearchSelect = useCallback((item) => {
-    setSearchSidePanelTab('chat');
-    setHeaderSearchInput(item.label);
-    setSearchQuery(item.label);
-  }, []);
-
-  const handleSearchClear = useCallback(() => {
-    setHeaderSearchInput('');
-    setSearchQuery('');
-  }, []);
-
-  const handleSearchSubmit = useCallback((query) => {
+  const beginSearch = useCallback((query) => {
     const trimmed = query.trim();
     if (!trimmed) return;
 
-    setHeaderSearchInput(trimmed);
+    const id = `session-${Date.now()}`;
+    const session = createChatSession({ id, query: trimmed, messages: [] });
+
+    lastSeededSearchQueryRef.current = trimmed;
+    setChatSessions((sessions) => [session, ...sessions]);
+    setActiveChatSessionId(id);
+    setSearchChatMessages([]);
+    setSearchChatEngaged(false);
+    setSearchChatOpen(true);
+    setSearchSidePanelTab('chat');
+    setHeaderSearchInput('');
     setSearchQuery(trimmed);
     if (location.pathname !== ROUTE_SEARCH) {
       navigate(ROUTE_SEARCH);
     }
   }, [location.pathname, navigate]);
+
+  const handleRecentSearchSelect = useCallback((item) => {
+    beginSearch(item.label);
+  }, [beginSearch]);
+
+  const handleSearchClear = useCallback(() => {
+    setHeaderSearchInput('');
+  }, []);
+
+  const handleSearchSubmit = useCallback((query) => {
+    beginSearch(query);
+  }, [beginSearch]);
 
   const handleRefineSearch = useCallback(({ refineQuery, folderIds = [] }) => {
     const trimmed = refineQuery?.trim();
@@ -731,33 +751,70 @@ function AppContent() {
       .map((id) => findFolderById(PROJECTS_PANEL_FOLDER_TREE, id)?.name)
       .filter(Boolean);
 
-    setSearchChatMessages((prev) => {
-      const next = [...prev];
-      const isFirstFollowUp = prev.length === 0;
-
-      next.push({
-        id: `search-user-${Date.now()}`,
+    const prev = searchChatMessages;
+    const isFirstFollowUp = prev.length === 0;
+    const stamp = Date.now();
+    const next = [
+      ...prev,
+      {
+        id: `search-user-${stamp}`,
         role: 'user',
         content: trimmed || folderNames.join(', '),
         folderIds,
-      });
-      next.push({
-        id: `search-assistant-${Date.now()}`,
+      },
+      {
+        id: `search-assistant-${stamp}`,
         role: 'assistant',
         content: isFirstFollowUp
           ? buildRefineAssistantResponse(trimmed, folderNames)
           : buildFollowUpAssistantResponse(trimmed || folderNames.join(', ')),
-      });
+      },
+    ];
+    setSearchChatMessages(next);
 
-      return next;
-    });
+    const queryLabel = searchQuery.trim() || trimmed || folderNames.join(', ');
+    if (activeChatSessionId) {
+      setChatSessions((sessions) => {
+        const updated = sessions.map((session) =>
+          session.id === activeChatSessionId
+            ? { ...session, messages: next, timeLabel: 'Just now' }
+            : session
+        );
+        const current = updated.find((session) => session.id === activeChatSessionId);
+        return current
+          ? [current, ...updated.filter((session) => session.id !== activeChatSessionId)]
+          : updated;
+      });
+    } else {
+      const id = `session-${stamp}`;
+      setActiveChatSessionId(id);
+      setChatSessions((sessions) => [
+        createChatSession({ id, query: queryLabel, messages: next }),
+        ...sessions,
+      ]);
+    }
+
     setSearchChatEngaged(true);
     setSearchSidePanelTab('chat');
-  }, []);
+  }, [activeChatSessionId, searchChatMessages, searchQuery]);
 
   const handleSearchChatHintSelect = useCallback((hint) => {
     handleRefineSearch({ refineQuery: hint });
   }, [handleRefineSearch]);
+
+  const handleChatSessionSelect = useCallback((session) => {
+    lastSeededSearchQueryRef.current = session.query;
+    setActiveChatSessionId(session.id);
+    setSearchChatMessages(session.messages);
+    setSearchChatEngaged(session.messages.length > 0);
+    setHeaderSearchInput('');
+    setSearchQuery(session.query);
+    setSearchChatOpen(true);
+    setSearchSidePanelTab('chat');
+    if (location.pathname !== ROUTE_SEARCH) {
+      navigate(ROUTE_SEARCH);
+    }
+  }, [location.pathname, navigate]);
 
   return (
     <DndContext
@@ -769,17 +826,26 @@ function AppContent() {
       onDragCancel={handleProjectsDragCancel}
     >
     <div className={currentTrack || isPlayerClosing ? 'app-root player-visible' : 'app-root'}>
-      <Header
-        onOpenProjectsPanel={openProjectsPanel}
-        searchQuery={headerSearchInput}
-        onSearchQueryChange={setHeaderSearchInput}
-        onSearchSubmit={handleSearchSubmit}
-        onSearchClear={handleSearchClear}
-        headerMenuRef={headerMenuRef}
-      />
-      <Sidebar onHomeClick={handleHomeNavClick} />
+      {!isAdminConsole && (
+        <Header
+          onOpenProjectsPanel={openProjectsPanel}
+          searchQuery={headerSearchInput}
+          onSearchQueryChange={setHeaderSearchInput}
+          onSearchSubmit={handleSearchSubmit}
+          onSearchClear={handleSearchClear}
+          headerMenuRef={headerMenuRef}
+        />
+      )}
+      {!isAdminConsole && (
+        <Sidebar
+          onHomeClick={handleHomeNavClick}
+          searchResultsVersion={searchResultsVersion}
+          onSearchResultsVersionChange={setSearchResultsVersion}
+          showVersionSwitch={!isAccountRoute}
+        />
+      )}
       <div
-        className={`app-content-wrapper${rightPanelOpen ? ' app-content--right-panel-open' : ''}${isSearchRoute ? ' app-content-wrapper--search' : ''}${isSearchRoute && searchChatOpen ? ' app-content-wrapper--search-chat' : ''}${isProjectsRoute ? ' app-content-wrapper--projects' : ''}${isFullBleedRoute ? ' app-content-wrapper--account' : ''}`}
+        className={`app-content-wrapper${rightPanelOpen ? ' app-content--right-panel-open' : ''}${isSearchRoute ? ' app-content-wrapper--search' : ''}${isSearchRoute && searchChatOpen ? ' app-content-wrapper--search-chat' : ''}${isProjectsRoute ? ' app-content-wrapper--projects' : ''}${isAdminConsole ? ' app-content-wrapper--admin' : ''}${isFullBleedRoute && !isAdminConsole ? ' app-content-wrapper--account' : ''}`}
         style={{
           ...(rightPanelOpen ? { paddingRight: `${mainPaddingRight}px` } : null),
           ...(isSearchRoute && searchChatOpen
@@ -793,11 +859,18 @@ function AppContent() {
             chatEngaged={searchChatEngaged}
             sidePanelTab={searchSidePanelTab}
             onSidePanelTabChange={setSearchSidePanelTab}
+            searchQuery={searchQuery}
             messages={searchChatMessages}
             onRefineSubmit={handleRefineSearch}
             onHintSelect={handleSearchChatHintSelect}
             width={searchChatPanelWidth}
             onWidthChange={setSearchChatPanelWidth}
+            resultsVersion={searchResultsVersion}
+            sessions={chatSessions}
+            activeSessionId={activeChatSessionId}
+            onSessionSelect={handleChatSessionSelect}
+            filtersWidth={searchFiltersPanelWidth}
+            onFiltersWidthChange={setSearchFiltersPanelWidth}
           />
         )}
         <main className="main-content">
@@ -853,6 +926,7 @@ function AppContent() {
               element={
                 <SearchPage
                   searchQuery={searchQuery}
+                  resultsVersion={searchResultsVersion}
                   onRecentSearchSelect={handleRecentSearchSelect}
                   soundsLikePanelOpen={soundsLikePanelOpen}
                   onSoundsLikeClick={openSoundsLikePanel}
@@ -865,11 +939,13 @@ function AppContent() {
             />
             <Route path={ROUTE_NOTIFICATIONS} element={<NotificationsPage />} />
             <Route path={ROUTE_ACCOUNT_NOTIFICATIONS} element={<AccountPage headerMenuRef={headerMenuRef} />} />
+            <Route path="/account/admin" element={<Navigate to={ROUTE_ADMIN} replace />} />
             <Route path={ROUTE_ACCOUNT} element={<AccountPage headerMenuRef={headerMenuRef} />} />
-            <Route path={ROUTE_ADMIN_NOTIFICATIONS} element={<AdminPage headerMenuRef={headerMenuRef} onOpenMemberActivity={openTeamMemberActivityPanel} />} />
-            <Route path={ROUTE_ADMIN_SETTINGS} element={<AdminPage headerMenuRef={headerMenuRef} onOpenMemberActivity={openTeamMemberActivityPanel} />} />
-            <Route path={ROUTE_ADMIN_TEAM} element={<AdminPage headerMenuRef={headerMenuRef} onOpenMemberActivity={openTeamMemberActivityPanel} />} />
-            <Route path={ROUTE_ADMIN} element={<AdminPage headerMenuRef={headerMenuRef} onOpenMemberActivity={openTeamMemberActivityPanel} />} />
+            <Route path={ROUTE_ADMIN_NOTIFICATIONS} element={<AdminPage onOpenMemberActivity={openTeamMemberActivityPanel} onAdminDashboardNav={closeTeamMemberActivityPanel} />} />
+            <Route path={ROUTE_ADMIN_SETTINGS} element={<AdminPage onOpenMemberActivity={openTeamMemberActivityPanel} onAdminDashboardNav={closeTeamMemberActivityPanel} />} />
+            <Route path={ROUTE_ADMIN_ACCOUNT} element={<AdminPage onOpenMemberActivity={openTeamMemberActivityPanel} onAdminDashboardNav={closeTeamMemberActivityPanel} />} />
+            <Route path={ROUTE_ADMIN_TEAM} element={<AdminPage onOpenMemberActivity={openTeamMemberActivityPanel} onAdminDashboardNav={closeTeamMemberActivityPanel} />} />
+            <Route path={ROUTE_ADMIN} element={<AdminPage onOpenMemberActivity={openTeamMemberActivityPanel} onAdminDashboardNav={closeTeamMemberActivityPanel} />} />
             <Route path={ROUTE_DESIGN_SYSTEM} element={<DesignSystemPage />} />
           </Routes>
         </main>
